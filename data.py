@@ -5,14 +5,19 @@ from operator import mul
 
 def load_data(year):
     teams = load_teams()
-    season_data = load('RegularSeasonDetailedResults.csv')
-    tourney_data = load('TourneyDetailedResults.csv')
+
+    if year > 2016:
+        season_data = load('RegularSeasonDetailedResults_Prelim2018.csv')
+        tourney_data = load('NCAATourneyDetailedResults.csv')
+    else:
+        season_data = load('RegularSeasonDetailedResults.csv')
+        tourney_data = load('TourneyDetailedResults.csv')
 
     t_data = load_year(year, tourney_data)
     t_data_formatted = format_game_data(load_year(year, tourney_data))
 
     # Need to reload due to deleted element, creates array dimension mismatch
-    tourney_data = load('TourneyDetailedResults.csv')
+    tourney_data = load('NCAATourneyDetailedResults.csv')
 
     train_data, cum_stats = format_game_data(season_data, year)
     split = int(len(train_data) * .2)

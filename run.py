@@ -17,31 +17,37 @@ def main():
     # 2) Log loss associated with predictions
     # 3) Accuracy of predicted tournament outcomes
     # 4) Accuracy of predicted first round games
-    # 5) Accuracy of model on all tournaments in dataset (2003-2016)
+    # 5) Accuracy of model on all tournaments in dataset (2003-2017)
 
-    input_year = int(input("Please enter year (2003-2016): ").strip())
+    input_year = int(input("Please enter year (2003-2018): ").strip())
 
-    if not (2003 <= input_year <= 2016):
+    if not (2003 <= input_year <= 2018):
         print("Error, please enter year in correct range")
         print("Exiting...")
         return
 
     print("loading dataset")
     train_data, valid_data, cum_stats, t_data, t_data_formatted, tournament_data, teams = load_data(input_year)
-
     print("training")
+
+    # Uncomment to increase training speed for debugging
+    # train_data = train_data[:1000]
+    # valid_data = valid_data[:1000]
     net.train(train_data, valid_data, epochs=20, mini_batch_size=10, alpha=0.5)
 
-    # Full tournament predictions and log loss
-    evaluate_tournament(t_data, cum_stats, teams, input_year)
-    # Accuracy on tournament
-    print(str(input_year) + " tournament ", end="")
-    test_tournament(t_data, cum_stats)
-    # Accuracy on first round
-    first_round(t_data, cum_stats, teams)
-    print("All tournaments (2003-2016) ", end="")
-    # Accuracy on all tournaments (2003-2016)
-    test_tournament(tournament_data, cum_stats)
+    if input_year == 2018:
+        evaluate_current(cum_stats, teams, input_year)
+    else:
+        # Full tournament predictions and log loss
+        evaluate_tournament(t_data, cum_stats, teams, input_year)
+        # Accuracy on tournament
+        print(str(input_year) + " tournament ", end="")
+        test_tournament(t_data, cum_stats)
+        # Accuracy on first round
+        first_round(t_data, cum_stats, teams, input_year)
+        print("All tournaments (2003-2016) ", end="")
+        # Accuracy on all tournaments (2003-2016)
+        test_tournament(tournament_data, cum_stats)
 
 def evaluate_tournament(tournament_data, cum_stats, teams, year):
     print('')
@@ -54,7 +60,7 @@ def evaluate_tournament(tournament_data, cum_stats, teams, year):
     for game in tournament_data:
 
         team1, team2 = teams[int(game[2])], teams[int(game[4])]
-        output1, output2, log_loss_input = predict_game(game, cum_stats)
+        output1, output2, log_loss_input = predict_game(int(game[2]), int(game[4]), cum_stats, year)
 
         log_loss.append(log_loss_input)
         actual_loss.append(output1)
@@ -69,9 +75,9 @@ def evaluate_tournament(tournament_data, cum_stats, teams, year):
     final = metrics.log_loss(actual_loss, log_loss)
     print("Log Loss: ", final)
 
-def predict_game(game, cum_stats):
-        team1_stats = cum_stats[int(game[2])][0]
-        team2_stats = cum_stats[int(game[4])][0]
+def predict_game(team1, team2, cum_stats, year):
+        team1_stats = cum_stats[team1][0]
+        team2_stats = cum_stats[team2][0]
 
         win_np = np.array(team1_stats)
         lose_np = np.array(team2_stats)
@@ -122,7 +128,7 @@ def test_tournament(tournament_data, cum_stats):
     tr, ntr = net.evaluate(test_data), len(test_data)
     print("accuracy %d/%d (%.2f%%) \n" % (tr, ntr, 100*tr/ntr), end='')
 
-def first_round(tournament_data, cum_stats, teams):
+def first_round(tournament_data, cum_stats, teams, year):
     # Calculate the first round accuracy (x/32) of our model for input year
 
     # First 4 games will be play-ins, not truly "first round" like next 32
@@ -131,13 +137,85 @@ def first_round(tournament_data, cum_stats, teams):
     for game in first_round:
         team1 = teams[int(game[2])]
         team2 = teams[int(game[4])]
-        output1, output2, temp = predict_game(game, cum_stats)
+        output1, output2, temp = predict_game(int(game[2]), int(game[4]), cum_stats, year)
 
         if output1 == 1:
             second_round.append(team1)
 
     first, second = len(first_round), len(second_round)
     print("Round of 64 accuracy: %d/%d (%.2f%%) \n" % (second, first, 100*second/first), end='')
+
+def evaluate_current(cum_stats, teams, year):
+    print('')
+    print("**********************************")
+    print(str(year) + " TOURNAMENT PREDICTED RESULTS")
+    print("**********************************")
+    log_loss = []
+    actual_loss = []
+
+    tournament = ['1438', '1420',
+                    '1166', '1243',
+                    '1246', '1172',
+                    '1112', '1138',
+                    '1274', '1260',
+                    '1397', '1460',
+                    '1305', '1400',
+                    '1153', '1209',
+                    '1462', '1411',
+                    '1281', '1199',
+                    '1326', '1377',
+                    '1211', '1422',
+                    '1222', '1361',
+                    '1276', '1285',
+                    '1401', '1344',
+                    '1314', '1252',
+                    '1437', '1347',
+                    '1439', '1104',
+                    '1452', '1293',
+                    '1455', '1267',
+                    '1196', '1382',
+                    '1403', '1372',
+                    '1116', '1139',
+                    '1345', '1168',
+                    '1242', '1335',
+                    '1371', '1301',
+                    '1155', '1308',
+                    '1120', '1158',
+                    '1395', '1393',
+                    '1277', '1137',
+                    '1348', '1328',
+                    '1181', '1233']
+    temp = []
+
+    while (len(tournament) >1):
+        #copy elements of tournament into temp list
+        temp = list(tournament)
+
+        for i in range(0, len(tournament), 2):
+
+            team1, team2 = teams[int(tournament[i])], teams[int(tournament[i+1])]
+            output1, output2, log_loss_input = predict_game(int(tournament[i]), int(tournament[i+1]), cum_stats, year)
+
+            if output1 == 1:
+                temp.remove(tournament[i+1])
+            else:
+                temp.remove(tournament[i])
+
+            log_loss.append(log_loss_input)
+            actual_loss.append(output1)
+
+            output1 = str(output1).replace("1", "Win").replace("0", "Loss")
+            output2 =  str(output2).replace("1", "Win").replace("0", "Loss")
+
+            print(team1 + ": " + output1)
+            print(team2 + ": " + output2)
+            print("******************************")
+
+        # copy updated elements of temp list into tournament list
+        tournament = list(temp)
+
+    final = metrics.log_loss(actual_loss, log_loss)
+    print("Log Loss: ", final)
 
 if __name__ == '__main__':
     main()
